@@ -18,6 +18,8 @@ else:
 
 CSV_FILE = os.path.join(pasta_atual, "agendamentos.csv")
 
+CSV_CONCLUIDOS = os.path.join(pasta_atual, "servicos_concluidos.csv")
+
 
 
 def validar_email(email):
@@ -36,7 +38,7 @@ def validar_hora(hora):
     except ValueError:
         return None
 
-# ------------------- Formatação automática de data e hora -------------------
+# Formatação automática de data e hora 
 def formatar_data(event=None):
     texto = entry_data.get().replace("/", "")[:8]
     novo = ""
@@ -154,7 +156,7 @@ def ver_agendamentos():
 
     carregar_dados()
 
-    # 🔍 Filtro
+    # Filtro
     frame_filtro = tk.Frame(janela)
     frame_filtro.pack(pady=5)
 
@@ -173,11 +175,46 @@ def ver_agendamentos():
             carregar_dados(filtro=filtro, termo=termo)
         else:
             carregar_dados()
+    
+    def marcar_concluido():
+        selecionados = tree.selection()
+        if not selecionados:
+            messagebox.showwarning("Seleção", "Selecione pelo menos um agendamento para marcar como concluído.")
+            return
 
+        concluido = []
+        with open(CSV_FILE, mode="r", encoding="utf-8") as file:
+            linhas = list(csv.reader(file))
+
+        cabecalho, registros = linhas[0], linhas[1:]
+        novos_registros = []
+
+        for sel in selecionados:
+            valores = tree.item(sel)["values"]
+            concluido.append(valores)
+
+    
+
+    # Salva no CSV de concluídos
+        arquivo_existe = os.path.isfile(CSV_CONCLUIDOS)
+        with open(CSV_CONCLUIDOS, mode="a", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            if not arquivo_existe:
+                writer.writerow(cabecalho)
+            writer.writerows(concluido)
+
+        for sel in selecionados:
+            tree.delete(sel)
+
+        messagebox.showinfo("Concluído", "Agendamento(s) movido(s) para serviços concluídos!")
+        
     btn_filtrar = tk.Button(frame_filtro, text="Filtrar", command=aplicar_filtro, bg="#2196F3", fg="white")
     btn_filtrar.pack(side="left", padx=5)
-
-    # ⚡ Funções Excluir e Editar
+    btn_concluir = tk.Button(frame_filtro, text="Marcar como Concluído", command=marcar_concluido, bg="#4CAF50", fg="white")
+    btn_concluir.pack(side="left", padx=5)
+    
+    
+    # Funções Excluir e Editar
     def excluir_selecionado():
         selecionado = tree.selection()
         if not selecionado:
@@ -304,7 +341,31 @@ def ver_agendamentos():
     tk.Button(frame_btns, text="Editar Selecionado", command=editar_selecionado,
               bg="#FF9800", fg="white").pack(side="left", padx=10)
 
-# ---------------- Janela Principal ----------------
+def ver_concluidos():
+    if not os.path.isfile(CSV_CONCLUIDOS):
+        messagebox.showinfo("Informação", "Nenhum serviço concluído encontrado.")
+        return
+
+    janela = tk.Toplevel(root)
+    janela.title("Serviços Concluídos")
+    janela.geometry("800x500")
+
+    colunas = ("Nome", "Email", "Serviço", "Data", "Hora", "Info Extra")
+    tree = ttk.Treeview(janela, columns=colunas, show="headings")
+    tree.pack(fill="both", expand=True, pady=10)
+
+    for col in colunas:
+        tree.heading(col, text=col)
+        tree.column(col, width=120, anchor="center")
+
+    with open(CSV_CONCLUIDOS, mode="r", encoding="utf-8") as file:
+        reader = csv.reader(file)
+        next(reader, None)  # pula cabeçalho
+        for row in reader:
+            tree.insert("", tk.END, values=row)
+
+
+#  Janela Principal 
 root = tk.Tk()
 root.title("Sistema de Agendamento")
 root.geometry("500x460")
@@ -339,5 +400,8 @@ tk.Button(root, text="Salvar Agendamento", command=salvar_agendamento,
 
 tk.Button(root, text="Ver Agendamentos", command=ver_agendamentos,
           bg="#2196F3", fg="white").pack(pady=5)
+
+tk.Button(root, text="Ver Concluídos", command=ver_concluidos,
+          bg="#9C27B0", fg="white").pack(pady=5)
 
 root.mainloop()
